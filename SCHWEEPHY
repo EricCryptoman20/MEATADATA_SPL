@@ -1,0 +1,108 @@
+import {
+  Collection,
+  CreateMetadataAccountV3InstructionAccounts,
+  CreateMetadataAccountV3InstructionDataArgs,
+  Creator,
+  MPL_TOKEN_METADATA_PROGRAM_ID,
+  UpdateMetadataAccountV2InstructionAccounts,
+  UpdateMetadataAccountV2InstructionData,
+  Uses,
+  createMetadataAccountV3,
+  updateMetadataAccountV2,
+  findMetadataPda,
+} from '@metaplex-foundation/mpl-token-metadata'
+import * as web3 from '@solana/web3.js'
+import {
+  PublicKey,
+  createSignerFromKeypair,
+  none,
+  signerIdentity,
+  some,
+} from '@metaplex-foundation/umi'
+import { createUmi } from '@metaplex-foundation/umi-bundle-defaults'
+
+const umi = createUmi('https://api.mainnet-beta.solana.com')
+import {
+  fromWeb3JsKeypair,
+  fromWeb3JsPublicKey,
+} from '@metaplex-foundation/umi-web3js-adapters'
+
+export function loadWalletKey(secretKey: Uint8Array): web3.Keypair {
+  const loaded = web3.Keypair.fromSecretKey(secretKey)
+  return loaded
+}
+
+const INITIALIZE = true
+
+async function main() {
+  try {
+    console.log("let's name some tokens in 2024!")
+    const secretKey = new Uint8Array({UR PRIVATE KEY OF KEYPAIR WWALLET})
+    const web3jsKeyPair = loadWalletKey(secretKey)
+    const mint = new web3.PublicKey(
+      'MINT ADDRESS OF TOKEN U CREATED'
+    )
+
+    const keypair = fromWeb3JsKeypair(web3jsKeyPair)
+    const signer = createSignerFromKeypair(umi, keypair)
+    umi.identity = signer
+    umi.payer = signer
+
+    const ourMetadata = {
+      // TODO change those values!
+      name: 'ANSEM WIF HAT',
+      symbol: 'AWIF',
+      uri:
+        'https://raw.githubusercontent.com/-------/',
+    }
+
+    const onChainData = {
+      ...ourMetadata,
+      // we don't need that
+      sellerFeeBasisPoints: 0,
+      creators: none<Creator[]>(),
+      collection: none<Collection>(),
+      uses: none<Uses>(),
+    }
+
+    if (INITIALIZE) {
+      const accounts: CreateMetadataAccountV3InstructionAccounts = {
+        mint: fromWeb3JsPublicKey(mint),
+        mintAuthority: signer,
+      }
+      const data: CreateMetadataAccountV3InstructionDataArgs = {
+        isMutable: true,
+        collectionDetails: null,
+        data: onChainData,
+      }
+      const txid = await createMetadataAccountV3(umi, {
+        ...accounts,
+        ...data,
+      }).sendAndConfirm(umi)
+      console.log(txid)
+    } else {
+      
+
+      const data: UpdateMetadataAccountV2InstructionData = {
+        data: some(onChainData),
+        discriminator: 0,
+        isMutable: some(true),
+        newUpdateAuthority: none<PublicKey>(),
+        primarySaleHappened: none<boolean>(),
+      }
+      const accounts: UpdateMetadataAccountV2InstructionAccounts = {
+        metadata: findMetadataPda(umi, { mint: fromWeb3JsPublicKey(mint) }),
+        updateAuthority: signer,
+      }
+      const txid = await updateMetadataAccountV2(umi, {
+        ...accounts,
+        ...data,
+      }).sendAndConfirm(umi)
+      console.log(txid)
+    }
+  } catch (error) {
+    console.error('Error:', error)
+  }
+}
+
+main()
